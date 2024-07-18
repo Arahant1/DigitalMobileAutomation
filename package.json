@@ -1,0 +1,99 @@
+{
+	"name": "digmobiautomation",
+	"version": "1.0.0",
+	"private": true,
+	"author": {
+		"name": "Arahant",
+		"email": "arihant.yal@gmail.com"
+	},
+	"contributors": [
+		{
+			"name": "abc",
+			"email": "test@gmail.com"
+		},
+		{
+			"name": "abc",
+			"email": "test@gmail.com"
+		}
+	],
+	"type": "module",
+	"scripts": {
+		"prepare": "husky",
+		"test": "cross-env NODE_ENV=test vitest --config vitest.config.ts --run",
+		"start": "cross-env NODE_ENV=prod node --no-warnings --max_old_space_size=12000 --loader ts-node/esm scr/main.ts",
+		"appium": "npm start -- --provider appium",
+		"mock": "npm start -- --provider mock",
+		"browserstack": "npm start -- --provider browserstack",
+		"lint": "run-s lint:*",
+		"linte:es": "cross-env eslint '**/*.ts' -c .eslint.cjs --max-warnings 0",
+		"lint:types": "tsc --noemit",
+		"lint:gherkin": "gherkin-lint scr/features",
+		"lint:customeGherkin": "cross-env NODE_ENV=test node --no-warnings --max_old_space_size=12000 --loader ts-node/esm scr/gherkin_lint_rules/customeGherkin.ts",
+		"lint:xrayCucumber": "run-s xrayCucumber:*",
+		"xrayCucumber:directWealth": "cross-env NODE_ENV=test node --no-warnings --max_old_space_size=12000 --loader ts-node/esm scr/scripts/xrayCucumber-lint.ts --app DIRECT_WEALTH",
+		"ts-coverage": "typescript-coverage-report",
+		"create-ado-test-plan": "cross-env NODE_ENV=test node --no-warnings --max_old_space_size=12000 --loader ts-node/esm scr/scripts/ado-test-plan-creator.ts",
+		"update-ado-test-results": "cross-env NODE_ENV=test node --no-warnings --max_old_space_size=12000 --loader ts-node/esm scr/scripts/ado-test-result-updater.ts",
+		"check-pr-expectation": "cross-env NODE_ENV=test node --no-warnings --max_old_space_size=12000 --loader ts-node/esm scr/scripts/check-pr-expectation.ts",
+		"testMap": "cross-env NODE_ENV=test node --no-warnings --max_old_space_size=12000 --loader ts-node/esm scr/scripts/testMap.ts"
+	},
+	"typesCoverage": {
+		"atLeast": 99.29,
+		"outputDir": "./report/coverage",
+		"project": "tsconfig.json"
+	},
+	"engines": {
+		"node": ">=20.10.0"
+	},
+	"devDependencies": {
+		"@commitlint/cli": "19.3.0",
+		"@commitlint/config-conventional": "19.2.2",
+		"@types/eslint": "8.56.10",
+		"@types/lodash": "4.14.202",
+		"@types/node": "20.12.12",
+		"@types/validator": "13.12.0",
+		"@types/yargs": "17.0.32",
+		"@typescript-eslint/eslint-plugin": "7.1.0",
+		"@typescript-eslint/parser": "7.1.0",
+		"@vitest/coverage-v8": "1.6.0",
+		"cross-env": "7.0.3",
+		"eslint": "8.57.0",
+		"eslint-plugin-import": "2.29.1",
+		"eslint-plugin-json": "3.1.0",
+		"eslint-plugin-local-rules": "2.0.1",
+		"eslint-plugin-simple-import-sort": "12.0.0",
+		"gherkin-lint": "4.2.4",
+		"husky": "9.0.11",
+		"nock": "14.0.0-beta.6",
+		"npm-run-all": "4.1.5",
+		"prettier": "3.2.5",
+		"ts-node": "10.9.2",
+		"typescript": "5.4.3",
+		"typescript-coverage-report": "0.8.0",
+		"undici": "^6.19.2",
+		"vitest": "1.6.0",
+		"words-to-numbers": "1.5.1",
+		"xray-cucumber-plugin": "2.0.2"
+	},
+	"dependencies": {
+		"@cucumber/cucumber": "10.7.0",
+		"@cucumber/gherkin": "28.0.0",
+		"@cucumber/gherkin-utils": "9.0.0",
+		"@cucumber/messages": "24.0.1",
+		"@cucumber/tag-expressions": "6.1.0",
+		"@faker-js/faker": "8.4.1",
+		"@wdio/cli": "9.0.0-alpha.115",
+		"@wdio/cucumber-framework": "9.0.0-alpha.115",
+		"@wdio/local-runner": "9.0.0-alpha.115",
+		"@wdio/spec-reporter": "9.0.0-alpha.115",
+		"csv-parse": "5.5.6",
+		"lodash": "4.17.21",
+		"momnet": "2.29.1",
+		"multiple-cucumber-html-reporter": "3.6.2",
+		"node-json-db": "2.3.0",
+		"util": "0.12.5",
+		"validator": "13.12.0",
+		"webdriverio": "9.0.0-alpha.115",
+		"winston": "3.11.0"
+	}
+}

@@ -1,0 +1,215 @@
+
+plugins{
+    id 'base'
+}
+
+// App center configuration
+def appCenterBaseUrl = 'https://api.appcenter.ms'
+
+// Browserstack configuration
+def browserStackUpLoadUrl = 'https://api-cloud.browserstack.com/app-automate/upload'
+
+// Define valid buld type
+def validBuildTypes = [
+    MyWorkspaceApp: ['BrowserSatck' , 'Browserstack-Standalon'],
+    MANGA: ['Runway' , 'Regression', 'Feature'],
+    DW: ['Runway' , 'Regression', 'Feature']
+]
+
+// Default valaues if not provided as project properties
+def defaultAppName = 'MyWorkspaceApp'
+def defaultAppCenterOwnerName = 'Aviva-Mobile-Development'
+
+// Get values from project properties or use defaults
+def configureProxy = project.hasProperty('confifureProperty')? project.configureProxy : 'true'
+def appName = project.hasProperty('appName')? project.appName : defaultAppName
+def buildType = project.hasProperty('buildType')? project.configbuildType : validBuildTypes[appName][0]
+def androidBuildId = project.hasProperty('androidBuildId')? project.androidBuildId : 'latest'
+def iOSBuildId = project.hasProperty('iOSBuildId')? project.iOSBuildId : 'latest'
+def appCenterOwnerName = appName === defaultAppName ? defaultAppCenterOwnerName : 'Aviva-Mobile-NextGen'
+
+// Get environment variables
+def appCenterApiToken = getEnvironmenVariable('APPCNTER_TOKEN', configureProxy)
+def browserStackUserName = getEnvironmenVariable('BROWSERSTACK_USERNAME', configureProxy)
+def browserStackAccessKey = getEnvironmenVariable('BROWSERSTACK_ACCESSKEY', configureProxy)
+def proxyHost = getEnvironmenVariable('PROXY_HOST', configureProxy)
+def proxyPort = getEnvironmenVariable('PROXY_PORT', configureProxy)
+def proxyUser = getEnvironmenVariable('PROXY_USER', configureProxy) 
+def proxyPWD = getEnvironmenVariable('PROXY_PWD', configureProxy)
+
+// Validate build type based on the provided app name
+def validateBuildTypeForApp = validBuildTypes[appName]
+
+// Check if the provided build type is valid
+if (!validateBuildTypeForApp || !validateBuildTypeForApp.contains(buildType)){
+    throw new GradleException("Invalid buildType  '$buildType' for $appName")
+}
+
+
+// List of supported platforms
+def platforms = ['Android' , 'iOS']
+
+def clearProxyProperties = {
+    System.clearProxyProperty('http.proxyHost')
+    System.clearProxyProperty('http.proxyPort')
+    System.clearProxyProperty('https.proxyHost')
+    System.clearProxyProperty('https.proxyPort')
+    System.clearProxyProperty('http.proxyUser')
+    System.clearProxyProperty('http.proxyPassword')
+    System.clearProxyProperty('https.proxyUser')
+    System.clearProxyProperty('https.proxyPassword')
+}
+
+// Task to upload builds
+tasks.register ('uploadBuilds') {
+    doLast {
+        // set up a trust manager to trust all certificates
+        def trustAllManager = [
+            checkClientTrusted: {chain, authType -> },
+            checkServerTrusted: {chain, authType -> },
+            getAcceptedIssuers: {null},
+        ] as javax.net.ssl.X509TrustManager
+
+        // configure SSL to trust all certificates
+        javax.net.ssl.TrustManager[] trustManagers = [trustAllManager]
+        javax.net.ssl.SSLContext sslContext = javax.net.SSLContext.getInstance('SSL')
+        sslContext.init(null, trustManager, new java.security.SecureRandom())
+        javax.net.ssl.HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.getSocketFactory())
+
+        if (configureProxy == 'true') { 
+            // Set proxy properties
+            System.setProperty('http.proxyHost', proxyHost)
+            System.setProperty('http.proxyPort', proxyPort)
+            System.setProperty('https.proxyHost', proxyHost)
+            System.setProperty('https.proxyPort', proxyPort)
+
+            // Set proxy user and password if provided
+            if (proxyUser && proxyPWD) {
+                 System.setProperty('http.proxyUser', proxyUser)
+                 System.setProperty('http.proxyPassword', proxyPWD)
+                 System.setProperty('https.proxyUser', proxyUser)
+                 System.setProperty('https.proxyPassword', proxyPWD)
+            }
+        } else {
+            clearProxyProperties()
+        }
+
+        // Iterate over supported platforms
+        platforms.each { platform ->
+            // Generate a new app name based on platform and build type
+            def newAppName = appName == 'MANGA' && buildType == 'Runway' ? [appName, platform].join('-') : [appName, platform, buildType].join('-')
+
+            // App center API URL for releases
+            def releaseUrl = "${appCenterBaseUrl}/v0.1/apps/${appCenterOwnerName}/${newAppName}/recent_releases"
+
+            // Retrieve releases information from app center
+            def releases = new groovy.json.jsonSlurper().parseText(
+                new URL(releaseUrl).openConnection().with{
+                    setRequestProperty('X-API-Token', )
+                    inputStream.text
+                }
+            )
+
+            // Set buildId to null as it would be set below
+            def buildId = null
+
+            // If android build is not provided, use the latest release
+            if (platform == 'Android' && androidBuildId == 'latest'){
+                buildId = releases.max {it.uploadDate}
+                buildId = buildId.id
+            }
+            // If android build id is provided
+            else if (platform == 'Android' && androidBuildId != 'latest'){
+                buildId = androidBuildId
+            }
+            // If iOS build is not provided, use the latest release
+            else if (platform == 'iOS' && iOSBuildId != 'latest'){
+                buildId = releases.max {it.uploadDate}
+                buildId = buildId.id
+            } 
+            // If iOS Build is provided
+            else if (platform == 'iOS' && iOSBuildId != 'latest'){
+                buildId = iOSBuildId
+            } else{
+                throw new IllegalStateException ("Build Id for '$platform' is not set." )
+            }
+
+            println "Build Id used to fetch '$newAppName' app is '$buildId'."
+
+            // App center API url for the specific build
+            def buildUrl = "${appCenterBaseUrl}/v0.1/apps/${appCenterOwnerName}/${newAppName}/release/${buildId}"
+
+            // Retrieve download information for the build
+            def downloads = new groovy.json.jsonSlurper().parseText(
+                new URL(buildUrl).openConnection().with{
+                    setRequestProperty('X-API-Token', appCenterApiToken)
+                    inputStream.text
+                }
+            )
+            
+            // Get the download URL
+            def downloadUrl = downloads.download_url
+
+            // Execute cRUL command to upload the build to BrowserStack
+            def stdOut = new ByteArrayOutputStream()
+        
+            def uploadAppName = [defaultAppName, 'MAP'].contains(appName) ? defaultAppName : appName
+
+            // Common execute configuration
+            def commonExecConfig = [
+                'curl',
+                "-u", "${browserStackUserName}:${browserStackAccessKey}",
+                "-s", 'X', 'POST', browserStackUpLoadUrl,
+                '-F', "url=${downloadUrl}",
+                '-F', "custom_id=${[uploadAppName,platform,buildType.join('-')]}"
+            ]
+
+            if (configureProxy == 'true') {
+                commonExecConfig.addAll(['--proxy', "${proxyHost}:${proxyPort}", 'proxy-user', "${proxyUser}:${proxyPWD}"])
+            }
+
+            exec {
+                commandLine commonExecConfig
+                standardOutput = stdOut
+            }
+
+            println "App uploaded to ${stdOut.toString()}"
+        }
+
+        // Clear proxy properties after task execution
+        clearProxyProperties()
+    }
+}
+
+
+// Function to get environment variable from both system env and dotenv
+
+def getEnvironmenVariable(variableName, configureProxy){
+    //check system environment variable first
+    String value = System.getenv(variableName)
+
+    def currentDir = project.projectDir
+
+    // If not found, try loading frpfromm .env file
+    if (value == null){
+        try{
+            new File("${currentDir}/.env").eachLine {line ->
+                def parts = line.split('=')
+                if(parts.size()==2) {
+                    if (parts[0].trim()== variableName) {
+                        value = parts[1].trim()
+                    }
+                }
+            } 
+        } catch (Exception e){
+
+        }
+    }
+    // If value not found, thow an error
+
+    if (configureProxy == 'true' && value == null){
+        throw new IllegalStateException ("Environment variable '$variableName' not found.")
+    }
+
+    return value
+}

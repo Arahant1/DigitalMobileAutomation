@@ -1,0 +1,16 @@
+{
+	"compilerOptions": {
+		"sourceMap": false,
+		"target": "ESNext",
+		"module": "ESNext",
+		"moduleResolution": "node",
+		"removeComments": true,
+		"noImplicitAny": true,
+		"strictPropertyInitialization": true,
+		"strictNullChecks": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"types": ["node", "@wdio/globals/types"]
+	},
+	"include": ["src/**/*.ts", "specs/**/*.ts"]
+}
